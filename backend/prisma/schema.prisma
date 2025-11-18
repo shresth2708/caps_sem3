@@ -1,0 +1,169 @@
+// Prisma Schema for StockPilot Inventory Management System
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============ User Management ============
+model User {
+  id             Int             @id @default(autoincrement())
+  name           String
+  email          String          @unique
+  password       String          // hashed with bcrypt
+  role           String          @default("user") // "admin" or "user"
+  isActive       Boolean         @default(true)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  transactions   Transaction[]
+  notifications  Notification[]
+  purchaseOrders PurchaseOrder[]
+
+  @@index([email])
+}
+
+// ============ Category Management ============
+model Category {
+  id          Int        @id @default(autoincrement())
+  name        String     @unique
+  description String?
+  color       String?    @default("#3B82F6")
+  icon        String?
+  parentId    Int?
+  parent      Category?  @relation("SubCategories", fields: [parentId], references: [id], onDelete: Cascade)
+  children    Category[] @relation("SubCategories")
+  products    Product[]
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@index([parentId])
+}
+
+// ============ Supplier Management ============
+model Supplier {
+  id             Int             @id @default(autoincrement())
+  name           String
+  company        String?
+  email          String?
+  phone          String?
+  address        String?
+  rating         Float?          @default(0)
+  paymentTerms   String?
+  leadTimeDays   Int             @default(7)
+  isActive       Boolean         @default(true)
+  products       Product[]
+  purchaseOrders PurchaseOrder[]
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  @@index([name])
+}
+
+// ============ Product Management ============
+model Product {
+  id               Int             @id @default(autoincrement())
+  sku              String          @unique @default(cuid())
+  name             String
+  description      String?
+  categoryId       Int?
+  category         Category?       @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  supplierId       Int?
+  supplier         Supplier?       @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+  unitPrice        Float
+  sellingPrice     Float?
+  quantity         Int             @default(0)
+  minStockLevel    Int             @default(10)
+  reorderPoint     Int             @default(10)
+  reorderQuantity  Int             @default(50)
+  averageDailySale Float?
+  unit             String          @default("pcs") // pcs, kg, ltr, etc.
+  barcode          String?
+  qrCode           String?
+  imageUrl         String?
+  expiryDate       DateTime?
+  batchNumber      String?
+  isActive         Boolean         @default(true)
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  transactions     Transaction[]
+  notifications    Notification[]
+  purchaseOrders   PurchaseOrder[]
+
+  @@index([name])
+  @@index([sku])
+  @@index([categoryId])
+  @@index([supplierId])
+  @@index([quantity])
+}
+
+// ============ Transaction/Stock Movement ============
+model Transaction {
+  id          Int      @id @default(autoincrement())
+  productId   Int
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  userId      Int
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type        String   // "stock_in", "stock_out", "adjustment", "return", "damage"
+  quantity    Int
+  beforeQty   Int
+  afterQty    Int
+  unitPrice   Float?
+  totalValue  Float?
+  notes       String?
+  referenceNo String?  // Invoice/PO number
+  createdAt   DateTime @default(now())
+
+  @@index([productId])
+  @@index([userId])
+  @@index([createdAt])
+  @@index([type])
+}
+
+// ============ Purchase Order Management ============
+model PurchaseOrder {
+  id            Int       @id @default(autoincrement())
+  orderNumber   String    @unique @default(cuid())
+  productId     Int
+  product       Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  supplierId    Int
+  supplier      Supplier  @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  userId        Int
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  quantity      Int
+  unitPrice     Float
+  totalAmount   Float
+  status        String    @default("pending") // pending, approved, delivered, cancelled
+  orderDate     DateTime  @default(now())
+  expectedDate  DateTime?
+  deliveredDate DateTime?
+  notes         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([status])
+  @@index([orderDate])
+  @@index([productId])
+  @@index([supplierId])
+}
+
+// ============ Notifications ============
+model Notification {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String   // "low_stock", "out_of_stock", "reorder", "po_update"
+  title     String
+  message   String
+  read      Boolean  @default(false)
+  productId Int?
+  product   Product? @relation(fields: [productId], references: [id], onDelete: Cascade)
+  link      String?
+  createdAt DateTime @default(now())
+
+  @@index([userId, read])
+  @@index([createdAt])
+}

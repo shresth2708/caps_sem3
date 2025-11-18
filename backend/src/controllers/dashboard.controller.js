@@ -1,0 +1,318 @@
+const prisma = require('../config/database');
+
+// @desc    Get dashboard overview statistics
+const getDashboardStats = async (req, res, next) => {
+  try {
+    const [
+      totalProducts,
+      totalSuppliers,
+      totalCategories,
+      lowStockCount,
+      outOfStockCount,
+      recentTransactionsCount
+    ] = await Promise.all([
+      prisma.product.count({ where: { isActive: true } }),
+      prisma.supplier.count({ where: { isActive: true } }),
+      prisma.category.count(),
+      prisma.product.count({
+        where: {
+          isActive: true,
+          quantity: {
+            lte: prisma.raw('min_stock_level'),
+            gt: 0
+          }
+        }
+      }),
+      prisma.product.count({
+        where: {
+          isActive: true,
+          quantity: 0
+        }
+      }),
+      prisma.transaction.count({
+        where: {
+          createdAt: {
+            gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) // Last 7 days
+          }
+        }
+      })
+    ]);
+
+    // Calculate total inventory value
+    const products = await prisma.product.findMany({
+      where: { isActive: true },
+      select: {
+        unitPrice: true,
+        quantity: true
+      }
+    });
+
+    const inventoryValue = products.reduce((sum, product) => {
+      return sum + (product.unitPrice * product.quantity);
+    }, 0);
+
+    // Get low stock products for alerts
+    const lowStockProducts = await prisma.product.findMany({
+      where: {
+        isActive: true,
+        quantity: {
+          lte: prisma.raw('min_stock_level'),
+          gt: 0
+        }
+      },
+      select: {
+        id: true,
+        name: true,
+        sku: true,
+        quantity: true,
+        minStockLevel: true,
+        supplier: {
+          select: {
+            name: true,
+            phone: true
+          }
+        }
+      },
+      orderBy: { quantity: 'asc' },
+      take: 10
+    });
+
+    // Get out of stock products
+    const outOfStockProducts = await prisma.product.findMany({
+      where: {
+        isActive: true,
+        quantity: 0
+      },
+      select: {
+        id: true,
+        name: true,
+        sku: true,
+        supplier: {
+          select: {
+            name: true
+          }
+        }
+      },
+      take: 10
+    });
+
+    // Get products needing reorder
+    const reorderProducts = await prisma.product.findMany({
+      where: {
+        isActive: true,
+        quantity: {
+          lte: prisma.raw('reorder_point')
+        }
+      },
+      select: {
+        id: true,
+        name: true,
+        quantity: true,
+        reorderPoint: true,
+        reorderQuantity: true,
+        supplier: {
+          select: {
+            id: true,
+            name: true,
+            leadTimeDays: true
+          }
+        }
+      },
+      take: 10
+    });
+
+    res.json({
+      success: true,
+      data: {
+        overview: {
+          totalProducts,
+          totalSuppliers,
+          totalCategories,
+          lowStockCount,
+          outOfStockCount,
+          inStockCount: totalProducts - lowStockCount - outOfStockCount,
+          inventoryValue,
+          recentTransactionsCount
+        },
+        alerts: {
+          lowStockProducts,
+          outOfStockProducts,
+          reorderProducts
+        }
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Get data for dashboard charts
+const getChartData = async (req, res, next) => {
+  try {
+    // Category-wise product distribution
+    const categoryDistribution = await prisma.category.findMany({
+      include: {
+        _count: {
+          select: { products: true }
+        }
+      }
+    });
+
+    const categoryData = categoryDistribution.map(cat => ({
+      name: cat.name,
+      value: cat._count.products,
+      color: cat.color
+    })).filter(cat => cat.value > 0);
+
+    // Stock status distribution
+    const [inStock, lowStock, outOfStock] = await Promise.all([
+      prisma.product.count({
+        where: {
+          isActive: true,
+          quantity: {
+            gt: prisma.raw('min_stock_level')
+          }
+        }
+      }),
+      prisma.product.count({
+        where: {
+          isActive: true,
+          quantity: {
+            lte: prisma.raw('min_stock_level'),
+            gt: 0
+          }
+        }
+      }),
+      prisma.product.count({
+        where: {
+          isActive: true,
+          quantity: 0
+        }
+      })
+    ]);
+
+    const stockStatus = [
+      { name: 'In Stock', value: inStock, color: '#10B981' },
+      { name: 'Low Stock', value: lowStock, color: '#F59E0B' },
+      { name: 'Out of Stock', value: outOfStock, color: '#EF4444' }
+    ];
+
+    // Top 10 products by quantity
+    const topProductsByQuantity = await prisma.product.findMany({
+      where: { isActive: true },
+      select: {
+        name: true,
+        quantity: true,
+        unitPrice: true
+      },
+      orderBy: { quantity: 'desc' },
+      take: 10
+    });
+
+    // Top 10 products by value
+    const topProductsByValue = await prisma.product.findMany({
+      where: { isActive: true },
+      select: {
+        name: true,
+        quantity: true,
+        unitPrice: true
+      },
+      orderBy: [{ unitPrice: 'desc' }, { quantity: 'desc' }],
+      take: 10
+    });
+
+    const topByValue = topProductsByValue.map(p => ({
+      name: p.name,
+      value: p.unitPrice * p.quantity
+    }));
+
+    // Supplier contribution (products per supplier)
+    const supplierStats = await prisma.supplier.findMany({
+      where: { isActive: true },
+      include: {
+        _count: {
+          select: { products: true }
+        }
+      },
+      orderBy: {
+        products: {
+          _count: 'desc'
+        }
+      },
+      take: 10
+    });
+
+    const supplierData = supplierStats.map(sup => ({
+      name: sup.name,
+      products: sup._count.products
+    })).filter(sup => sup.products > 0);
+
+    // Recent transaction trends (last 30 days)
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    const transactionTrends = await prisma.$queryRaw`
+      SELECT 
+        DATE(created_at) as date,
+        type,
+        COUNT(*) as count
+      FROM "Transaction"
+      WHERE created_at >= ${thirtyDaysAgo}
+      GROUP BY DATE(created_at), type
+      ORDER BY date ASC
+    `;
+
+    res.json({
+      success: true,
+      data: {
+        categoryDistribution: categoryData,
+        stockStatus,
+        topProductsByQuantity,
+        topProductsByValue: topByValue,
+        supplierContribution: supplierData,
+        transactionTrends
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Get recent activity/transactions
+const getRecentActivity = async (req, res, next) => {
+  try {
+    const limit = parseInt(req.query.limit) || 20;
+
+    const recentTransactions = await prisma.transaction.findMany({
+      include: {
+        product: {
+          select: {
+            id: true,
+            name: true,
+            sku: true
+          }
+        },
+        user: {
+          select: {
+            name: true
+          }
+        }
+      },
+      orderBy: { createdAt: 'desc' },
+      take: limit
+    });
+
+    res.json({
+      success: true,
+      data: { recentTransactions }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+module.exports = {
+  getDashboardStats,
+  getChartData,
+  getRecentActivity
+};
