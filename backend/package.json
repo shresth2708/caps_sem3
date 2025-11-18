@@ -6,10 +6,11 @@
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js",
-    "prisma:generate": "npx prisma generate",
-    "prisma:migrate": "npx prisma migrate dev",
-    "prisma:push": "npx prisma db push",
-    "prisma:studio": "npx prisma studio"
+    "build": "prisma generate && prisma migrate deploy",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:push": "prisma db push",
+    "prisma:studio": "prisma studio"
   },
   "keywords": [
     "inventory",
