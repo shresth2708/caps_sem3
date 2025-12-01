@@ -7,12 +7,14 @@ import {
   ShoppingCart,
   Tags,
   Bell,
+  Users,
   Settings,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
 const Sidebar = () => {
-  const { isAdmin } = useAuth();
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
 
   const navItems = [
     {
@@ -50,6 +52,12 @@ const Sidebar = () => {
       path: '/notifications',
       icon: Bell,
     },
+    // Admin-only navigation item
+    ...(isAdmin ? [{
+      name: 'Users',
+      path: '/users',
+      icon: Users,
+    }] : []),
     {
       name: 'Settings',
       path: '/settings',

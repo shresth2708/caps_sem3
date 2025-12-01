@@ -42,6 +42,11 @@ router.post('/', authorize('admin'), validate(productSchema), productController.
 // @access  Private (Admin only)
 router.put('/:id', authorize('admin'), validate(productSchema), productController.updateProduct);
 
+// @route   PATCH /api/products/:id/stock
+// @desc    Update product stock quantity
+// @access  Private (User & Admin - PRD specification)
+router.patch('/:id/stock', productController.updateProductStock);
+
 // @route   DELETE /api/products/:id
 // @desc    Delete product
 // @access  Private (Admin only)

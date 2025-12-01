@@ -10,13 +10,14 @@ datasource db {
 }
 
 // ============ User Management ============
+// PRD Specification: id, name, email, role, createdAt
 model User {
   id             Int             @id @default(autoincrement())
   name           String
   email          String          @unique
   password       String          // hashed with bcrypt
-  role           String          @default("user") // "admin" or "user"
-  isActive       Boolean         @default(true)
+  role           String          @default("user") // "admin" | "user" (PRD specification)
+  isActive       Boolean         @default(true)  // Additional field for user management
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
   transactions   Transaction[]
@@ -36,7 +37,7 @@ model Category {
   parentId    Int?
   parent      Category?  @relation("SubCategories", fields: [parentId], references: [id], onDelete: Cascade)
   children    Category[] @relation("SubCategories")
-  products    Product[]
+  products    Product[] @relation("CategoryProducts")
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
 
@@ -44,18 +45,20 @@ model Category {
 }
 
 // ============ Supplier Management ============
+// PRD Specification: id, name, contact, products[]
 model Supplier {
   id             Int             @id @default(autoincrement())
   name           String
-  company        String?
-  email          String?
-  phone          String?
-  address        String?
+  contact        String?         // PRD specification - consolidated contact info
+  company        String?         // Additional field
+  email          String?         // Additional field
+  phone          String?         // Additional field  
+  address        String?         // Additional field
   rating         Float?          @default(0)
   paymentTerms   String?
   leadTimeDays   Int             @default(7)
   isActive       Boolean         @default(true)
-  products       Product[]
+  products       Product[]       // PRD specification - relationship to products
   purchaseOrders PurchaseOrder[]
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
@@ -64,19 +67,22 @@ model Supplier {
 }
 
 // ============ Product Management ============
+// PRD Specification: id, name, category, price, quantity, supplierId, createdAt
 model Product {
   id               Int             @id @default(autoincrement())
-  sku              String          @unique @default(cuid())
-  name             String
-  description      String?
-  categoryId       Int?
-  category         Category?       @relation(fields: [categoryId], references: [id], onDelete: SetNull)
-  supplierId       Int?
+  sku              String          @unique @default(cuid())  // Additional field for better tracking
+  name             String          // PRD specification
+  description      String?         // Additional field
+  category         String          // PRD specification - simplified as string instead of relation
+  categoryId       Int?            // Keep relation for advanced features
+  categoryRef      Category?       @relation("CategoryProducts", fields: [categoryId], references: [id], onDelete: SetNull)
+  supplierId       Int?            // PRD specification
   supplier         Supplier?       @relation(fields: [supplierId], references: [id], onDelete: SetNull)
-  unitPrice        Float
-  sellingPrice     Float?
-  quantity         Int             @default(0)
-  minStockLevel    Int             @default(10)
+  price            Float           // PRD specification - main price field
+  unitPrice        Float?          // Additional field - can be same as price
+  sellingPrice     Float?          // Additional field
+  quantity         Int             @default(0)  // PRD specification
+  minStockLevel    Int             @default(10) // Additional field for low stock alerts
   reorderPoint     Int             @default(10)
   reorderQuantity  Int             @default(50)
   averageDailySale Float?
@@ -87,7 +93,7 @@ model Product {
   expiryDate       DateTime?
   batchNumber      String?
   isActive         Boolean         @default(true)
-  createdAt        DateTime        @default(now())
+  createdAt        DateTime        @default(now())  // PRD specification
   updatedAt        DateTime        @updatedAt
   transactions     Transaction[]
   notifications    Notification[]
@@ -95,6 +101,7 @@ model Product {
 
   @@index([name])
   @@index([sku])
+  @@index([category])
   @@index([categoryId])
   @@index([supplierId])
   @@index([quantity])

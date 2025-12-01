@@ -20,6 +20,7 @@ import PurchaseOrders from './pages/PurchaseOrders'
 import Categories from './pages/Categories'
 import Notifications from './pages/Notifications'
 import Settings from './pages/Settings'
+import UserManagement from './pages/UserManagement'
 import NotFound from './pages/NotFound'
 
 function App() {
@@ -62,6 +63,7 @@ function App() {
             <Route path="purchase-orders" element={<PurchaseOrders />} />
             <Route path="categories" element={<Categories />} />
             <Route path="notifications" element={<Notifications />} />
+            <Route path="users" element={<UserManagement />} />
             <Route path="settings" element={<Settings />} />
           </Route>
 

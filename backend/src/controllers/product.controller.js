@@ -443,6 +443,104 @@ const generateProductQRCode = async (req, res, next) => {
   }
 };
 
+// @desc    Update product stock quantity
+// @route   PATCH /api/products/:id/stock
+// @access  Private (User & Admin)
+const updateProductStock = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { quantity, operation = 'set', notes } = req.body;
+
+    if (!quantity && quantity !== 0) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'INVALID_INPUT',
+          message: 'Quantity is required'
+        }
+      });
+    }
+
+    // Get current product
+    const product = await prisma.product.findUnique({
+      where: { id: parseInt(id) },
+      select: { id: true, name: true, quantity: true, sku: true }
+    });
+
+    if (!product) {
+      return res.status(404).json({
+        success: false,
+        error: {
+          code: 'PRODUCT_NOT_FOUND',
+          message: 'Product not found'
+        }
+      });
+    }
+
+    let newQuantity;
+    let transactionType;
+
+    // Calculate new quantity based on operation
+    switch (operation) {
+      case 'add':
+        newQuantity = product.quantity + parseInt(quantity);
+        transactionType = 'stock_in';
+        break;
+      case 'subtract':
+        newQuantity = Math.max(0, product.quantity - parseInt(quantity));
+        transactionType = 'stock_out';
+        break;
+      case 'set':
+      default:
+        newQuantity = parseInt(quantity);
+        transactionType = newQuantity > product.quantity ? 'stock_in' : 'stock_out';
+        break;
+    }
+
+    // Update product quantity and create transaction in a transaction
+    const result = await prisma.$transaction(async (tx) => {
+      // Update product
+      const updatedProduct = await tx.product.update({
+        where: { id: parseInt(id) },
+        data: { quantity: newQuantity },
+        include: {
+          supplier: true,
+          categoryRef: true
+        }
+      });
+
+      // Create transaction record
+      await tx.transaction.create({
+        data: {
+          productId: parseInt(id),
+          userId: req.user.id,
+          type: transactionType,
+          quantity: Math.abs(newQuantity - product.quantity),
+          beforeQty: product.quantity,
+          afterQty: newQuantity,
+          notes: notes || `Stock ${operation} operation`,
+          referenceNo: `STOCK-${Date.now()}`
+        }
+      });
+
+      return updatedProduct;
+    });
+
+    res.json({
+      success: true,
+      message: 'Product stock updated successfully',
+      data: {
+        product: result,
+        previousQuantity: product.quantity,
+        newQuantity: newQuantity,
+        operation: operation
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getAllProducts,
   getProductById,
@@ -451,5 +549,6 @@ module.exports = {
   deleteProduct,
   getLowStockProducts,
   getProductStats,
-  generateProductQRCode
+  generateProductQRCode,
+  updateProductStock
 };
