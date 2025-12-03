@@ -29,7 +29,7 @@ const Categories = () => {
   const [sortBy, setSortBy] = useState('name');
   const [sortOrder, setSortOrder] = useState('asc');
 
-  const limit = 20;
+  const limit = 5;
 
   // Load categories when filters change
   useEffect(() => {

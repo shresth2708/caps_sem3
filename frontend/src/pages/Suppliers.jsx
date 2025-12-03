@@ -32,7 +32,7 @@ const Suppliers = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [pagination, setPagination] = useState(null);
 
-  const limit = 20;
+  const limit = 5;
 
   // Load suppliers when filters change
   useEffect(() => {

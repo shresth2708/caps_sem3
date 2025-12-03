@@ -33,21 +33,21 @@ router.post('/refresh', authController.refreshToken);
 // @desc    Get all users (Admin only)
 // @access  Private (Admin)
 const { authorize } = require('../middleware/auth');
-router.get('/users', authorize('admin'), authController.getAllUsers);
+router.get('/users', authenticate, authorize('admin'), authController.getAllUsers);
 
 // @route   POST /api/auth/users
 // @desc    Create new user (Admin only)
 // @access  Private (Admin)
-router.post('/users', authorize('admin'), validate(userSignupSchema), authController.createUser);
+router.post('/users', authenticate, authorize('admin'), validate(userSignupSchema), authController.createUser);
 
 // @route   PUT /api/auth/users/:id
 // @desc    Update user (Admin only)
 // @access  Private (Admin)
-router.put('/users/:id', authorize('admin'), authController.updateUser);
+router.put('/users/:id', authenticate, authorize('admin'), authController.updateUser);
 
 // @route   DELETE /api/auth/users/:id
 // @desc    Delete user (Admin only)
 // @access  Private (Admin)
-router.delete('/users/:id', authorize('admin'), authController.deleteUser);
+router.delete('/users/:id', authenticate, authorize('admin'), authController.deleteUser);
 
 module.exports = router;

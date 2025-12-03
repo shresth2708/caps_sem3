@@ -12,6 +12,7 @@ import {
 } from 'lucide-react'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
 import { useAuth } from '../context/AuthContext'
+import api from '../services/api'
 
 const UserManagement = () => {
   const { user } = useAuth()
@@ -47,17 +48,13 @@ const UserManagement = () => {
   const fetchUsers = async () => {
     try {
       setLoading(true)
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5001/api'}/auth/users`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      })
-      const data = await response.json()
-      if (data.success) {
-        setUsers(data.data)
+      const response = await api.get('/auth/users')
+      if (response.data.success) {
+        setUsers(response.data.data)
       }
     } catch (error) {
-      toast.error('Failed to fetch users')
+      console.error('Failed to fetch users:', error)
+      toast.error(error.response?.data?.error?.message || 'Failed to fetch users')
     } finally {
       setLoading(false)
     }
@@ -66,32 +63,25 @@ const UserManagement = () => {
   const handleSubmit = async (e) => {
     e.preventDefault()
     try {
-      const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api'
-      const url = editingUser ? `${baseURL}/auth/users/${editingUser.id}` : `${baseURL}/auth/users`
-      const method = editingUser ? 'PUT' : 'POST'
+      let response
+      if (editingUser) {
+        response = await api.put(`/auth/users/${editingUser.id}`, formData)
+      } else {
+        response = await api.post('/auth/users', formData)
+      }
       
-      const response = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify(formData)
-      })
-      
-      const data = await response.json()
-      
-      if (data.success) {
+      if (response.data.success) {
         toast.success(`User ${editingUser ? 'updated' : 'created'} successfully`)
         setShowCreateModal(false)
         setEditingUser(null)
         setFormData({ name: '', email: '', password: '', role: 'user' })
         fetchUsers()
       } else {
-        toast.error(data.error?.message || `Failed to ${editingUser ? 'update' : 'create'} user`)
+        toast.error(response.data.error?.message || `Failed to ${editingUser ? 'update' : 'create'} user`)
       }
     } catch (error) {
-      toast.error(`Failed to ${editingUser ? 'update' : 'create'} user`)
+      console.error(`Failed to ${editingUser ? 'update' : 'create'} user:`, error)
+      toast.error(error.response?.data?.error?.message || `Failed to ${editingUser ? 'update' : 'create'} user`)
     }
   }
 
@@ -99,24 +89,17 @@ const UserManagement = () => {
     if (!confirm('Are you sure you want to delete this user?')) return
     
     try {
-      const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api'
-      const response = await fetch(`${baseURL}/auth/users/${userId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      })
+      const response = await api.delete(`/auth/users/${userId}`)
       
-      const data = await response.json()
-      
-      if (data.success) {
+      if (response.data.success) {
         toast.success('User deleted successfully')
         fetchUsers()
       } else {
-        toast.error(data.error?.message || 'Failed to delete user')
+        toast.error(response.data.error?.message || 'Failed to delete user')
       }
     } catch (error) {
-      toast.error('Failed to delete user')
+      console.error('Failed to delete user:', error)
+      toast.error(error.response?.data?.error?.message || 'Failed to delete user')
     }
   }
 

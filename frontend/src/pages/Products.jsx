@@ -47,7 +47,7 @@ const Products = () => {
     barcode: ''
   });
 
-  const limit = 20;
+  const limit = 5;
 
   // Status options for filtering
   const statusOptions = [
