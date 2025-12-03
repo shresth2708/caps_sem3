@@ -36,12 +36,12 @@ const getAllProducts = async (req, res, next) => {
     if (status === 'out_of_stock') {
       where.quantity = 0;
     } else if (status === 'low_stock') {
-      where.AND = [
-        { quantity: { gt: 0 } },
-        { quantity: { lte: prisma.raw('min_stock_level') } }
-      ];
+      where.quantity = {
+        gt: 0,
+        lte: 50 // Simple threshold for low stock
+      };
     } else if (status === 'in_stock') {
-      where.quantity = { gt: prisma.raw('min_stock_level') };
+      where.quantity = { gt: 50 };
     }
 
     // Get products
@@ -49,7 +49,7 @@ const getAllProducts = async (req, res, next) => {
       prisma.product.findMany({
         where,
         include: {
-          category: {
+          categoryRef: {
             select: {
               id: true,
               name: true,
@@ -61,7 +61,8 @@ const getAllProducts = async (req, res, next) => {
               id: true,
               name: true,
               phone: true,
-              email: true
+              email: true,
+              contact: true
             }
           }
         },
@@ -104,7 +105,7 @@ const getProductById = async (req, res, next) => {
     const product = await prisma.product.findUnique({
       where: { id: parseInt(id) },
       include: {
-        category: true,
+        categoryRef: true,
         supplier: true,
         transactions: {
           include: {
@@ -152,12 +153,21 @@ const getProductById = async (req, res, next) => {
 // @desc    Create new product
 const createProduct = async (req, res, next) => {
   try {
+    console.log('Raw request body:', req.body);
+    console.log('Validated data:', req.validatedData);
     const productData = req.validatedData;
+
+    // Generate SKU if not provided
+    if (!productData.sku || productData.sku.trim() === '') {
+      const timestamp = Date.now().toString();
+      const random = Math.random().toString(36).substring(2, 8);
+      productData.sku = `PRD-${timestamp}-${random}`.toUpperCase();
+    }
 
     const product = await prisma.product.create({
       data: productData,
       include: {
-        category: true,
+        categoryRef: true,
         supplier: true
       }
     });
@@ -182,6 +192,20 @@ const createProduct = async (req, res, next) => {
       data: { product }
     });
   } catch (error) {
+    console.error('Product creation error:', error);
+    
+    // Handle unique constraint violations
+    if (error.code === 'P2002') {
+      const field = error.meta?.target?.[0] || 'field';
+      return res.status(409).json({
+        success: false,
+        error: {
+          code: 'DUPLICATE_VALUE',
+          message: `A product with this ${field} already exists`
+        }
+      });
+    }
+    
     next(error);
   }
 };
@@ -211,7 +235,7 @@ const updateProduct = async (req, res, next) => {
       where: { id: parseInt(id) },
       data: updateData,
       include: {
-        category: true,
+        categoryRef: true,
         supplier: true
       }
     });
@@ -282,7 +306,7 @@ const getLowStockProducts = async (req, res, next) => {
       where: {
         isActive: true,
         quantity: {
-          lte: prisma.raw('min_stock_level'),
+          lte: 50,
           gt: 0
         }
       },
@@ -345,7 +369,7 @@ const getProductStats = async (req, res, next) => {
         where: {
           isActive: true,
           quantity: {
-            lte: prisma.raw('min_stock_level'),
+            lte: 50,
             gt: 0
           }
         }

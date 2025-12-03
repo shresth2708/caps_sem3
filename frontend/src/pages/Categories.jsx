@@ -1,14 +1,26 @@
 import { useState, useEffect } from 'react';
-import { PlusIcon, PencilIcon, TrashIcon, FolderIcon } from '@heroicons/react/24/outline';
+import { PlusIcon, PencilIcon, TrashIcon, FolderIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { toast } from 'react-toastify';
 import categoryService from '../services/categoryService';
 import SearchInput from '../components/ui/SearchInput';
 import Pagination from '../components/ui/Pagination';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
+import { useAuth } from '../context/AuthContext';
 
 const Categories = () => {
+  const { user } = useAuth();
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [showModal, setShowModal] = useState(false);
+  const [editingCategory, setEditingCategory] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [formData, setFormData] = useState({
+    name: '',
+    description: '',
+    color: '#3B82F6',
+    parentId: ''
+  });
   
   // Filters and pagination
   const [searchQuery, setSearchQuery] = useState('');
@@ -61,16 +73,78 @@ const Categories = () => {
     setCurrentPage(page);
   };
 
-  const handleDelete = async (categoryId) => {
-    if (!confirm('Are you sure you want to delete this category?')) {
+  // Form handlers
+  const resetForm = () => {
+    setFormData({
+      name: '',
+      description: '',
+      color: '#3B82F6',
+      parentId: ''
+    });
+    setEditingCategory(null);
+  };
+
+  const openCreateModal = () => {
+    resetForm();
+    setShowModal(true);
+  };
+
+  const openEditModal = (category) => {
+    setFormData({
+      name: category.name || '',
+      description: category.description || '',
+      color: category.color || '#3B82F6',
+      parentId: category.parentId || ''
+    });
+    setEditingCategory(category);
+    setShowModal(true);
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (submitting) return;
+
+    try {
+      setSubmitting(true);
+      
+      const submitData = {
+        ...formData,
+        parentId: formData.parentId ? parseInt(formData.parentId) : null
+      };
+
+      let response;
+      if (editingCategory) {
+        response = await categoryService.update(editingCategory.id, submitData);
+      } else {
+        response = await categoryService.create(submitData);
+      }
+
+      if (response.success) {
+        toast.success(`Category ${editingCategory ? 'updated' : 'created'} successfully!`);
+        setShowModal(false);
+        resetForm();
+        loadCategories();
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.error?.message || `Failed to ${editingCategory ? 'update' : 'create'} category`);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleDelete = async (categoryId, categoryName) => {
+    if (!window.confirm(`Are you sure you want to delete "${categoryName}"?`)) {
       return;
     }
 
     try {
-      await categoryService.delete(categoryId);
-      loadCategories(); // Reload the list
-    } catch (err) {
-      alert('Failed to delete category: ' + err.response?.data?.error?.message || err.message);
+      const response = await categoryService.delete(categoryId);
+      if (response.success) {
+        toast.success('Category deleted successfully!');
+        loadCategories();
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.error?.message || 'Failed to delete category');
     }
   };
 
@@ -93,10 +167,15 @@ const Categories = () => {
       {/* Header */}
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold text-gray-900">Categories</h1>
-        <button className="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 flex items-center gap-2">
-          <PlusIcon className="h-5 w-5" />
-          Add Category
-        </button>
+        {user?.role === 'admin' && (
+          <button 
+            onClick={openCreateModal}
+            className="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 flex items-center gap-2"
+          >
+            <PlusIcon className="h-5 w-5" />
+            Add Category
+          </button>
+        )}
       </div>
 
       {/* Search */}
@@ -190,17 +269,24 @@ const Categories = () => {
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <div className="flex justify-end gap-2">
-                          <button className="text-indigo-600 hover:text-indigo-900">
-                            <PencilIcon className="h-5 w-5" />
-                          </button>
-                          <button 
-                            onClick={() => handleDelete(category.id)}
-                            className="text-red-600 hover:text-red-900"
-                          >
-                            <TrashIcon className="h-5 w-5" />
-                          </button>
-                        </div>
+                        {user?.role === 'admin' && (
+                          <div className="flex justify-end gap-2">
+                            <button 
+                              onClick={() => openEditModal(category)}
+                              className="text-indigo-600 hover:text-indigo-900"
+                              title="Edit Category"
+                            >
+                              <PencilIcon className="h-5 w-5" />
+                            </button>
+                            <button 
+                              onClick={() => handleDelete(category.id, category.name)}
+                              className="text-red-600 hover:text-red-900"
+                              title="Delete Category"
+                            >
+                              <TrashIcon className="h-5 w-5" />
+                            </button>
+                          </div>
+                        )}
                       </td>
                     </tr>
                   ))}
@@ -265,6 +351,110 @@ const Categories = () => {
           </>
         )}
       </div>
+
+      {/* Category Form Modal */}
+      {showModal && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-11/12 max-w-md shadow-lg rounded-md bg-white">
+            <div className="mt-3">
+              {/* Modal Header */}
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-medium text-gray-900">
+                  {editingCategory ? 'Edit Category' : 'Create New Category'}
+                </h3>
+                <button
+                  onClick={() => setShowModal(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <XMarkIcon className="h-6 w-6" />
+                </button>
+              </div>
+
+              {/* Form */}
+              <form onSubmit={handleSubmit} className="space-y-4">
+                {/* Category Name */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Category Name *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+
+                {/* Description */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Description
+                  </label>
+                  <textarea
+                    rows="3"
+                    value={formData.description}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+
+                {/* Color */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Color
+                  </label>
+                  <input
+                    type="color"
+                    value={formData.color}
+                    onChange={(e) => setFormData({ ...formData, color: e.target.value })}
+                    className="w-full h-10 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+
+                {/* Parent Category */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Parent Category
+                  </label>
+                  <select
+                    value={formData.parentId}
+                    onChange={(e) => setFormData({ ...formData, parentId: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  >
+                    <option value="">No Parent (Root Category)</option>
+                    {categories
+                      .filter(cat => !editingCategory || cat.id !== editingCategory.id)
+                      .map((category) => (
+                        <option key={category.id} value={category.id}>
+                          {category.name}
+                        </option>
+                      ))}
+                  </select>
+                </div>
+
+                {/* Form Actions */}
+                <div className="flex justify-end gap-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => setShowModal(false)}
+                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={submitting}
+                    className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 disabled:opacity-50"
+                  >
+                    {submitting ? 'Saving...' : (editingCategory ? 'Update Category' : 'Create Category')}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

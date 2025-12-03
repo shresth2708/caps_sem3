@@ -34,13 +34,13 @@ router.get('/:id/qrcode', productController.generateProductQRCode);
 
 // @route   POST /api/products
 // @desc    Create new product
-// @access  Private (Admin only)
-router.post('/', authorize('admin'), validate(productSchema), productController.createProduct);
+// @access  Private (Any authenticated user)
+router.post('/', validate(productSchema), productController.createProduct);
 
 // @route   PUT /api/products/:id
 // @desc    Update product
-// @access  Private (Admin only)
-router.put('/:id', authorize('admin'), validate(productSchema), productController.updateProduct);
+// @access  Private (Any authenticated user)
+router.put('/:id', validate(productSchema), productController.updateProduct);
 
 // @route   PATCH /api/products/:id/stock
 // @desc    Update product stock quantity

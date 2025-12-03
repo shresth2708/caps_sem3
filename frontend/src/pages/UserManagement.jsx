@@ -47,7 +47,7 @@ const UserManagement = () => {
   const fetchUsers = async () => {
     try {
       setLoading(true)
-      const response = await fetch('/api/auth/users', {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5001/api'}/auth/users`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
@@ -66,7 +66,8 @@ const UserManagement = () => {
   const handleSubmit = async (e) => {
     e.preventDefault()
     try {
-      const url = editingUser ? `/api/auth/users/${editingUser.id}` : '/api/auth/users'
+      const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api'
+      const url = editingUser ? `${baseURL}/auth/users/${editingUser.id}` : `${baseURL}/auth/users`
       const method = editingUser ? 'PUT' : 'POST'
       
       const response = await fetch(url, {
@@ -98,7 +99,8 @@ const UserManagement = () => {
     if (!confirm('Are you sure you want to delete this user?')) return
     
     try {
-      const response = await fetch(`/api/auth/users/${userId}`, {
+      const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api'
+      const response = await fetch(`${baseURL}/auth/users/${userId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`

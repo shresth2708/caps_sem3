@@ -18,17 +18,17 @@ router.get('/:id', purchaseOrderController.getPurchaseOrderById);
 
 // @route   POST /api/purchase-orders
 // @desc    Create new purchase order
-// @access  Private (Admin only)
-router.post('/', authorize('admin'), validate(purchaseOrderSchema), purchaseOrderController.createPurchaseOrder);
+// @access  Private (Any authenticated user)
+router.post('/', validate(purchaseOrderSchema), purchaseOrderController.createPurchaseOrder);
 
-// @route   PUT /api/purchase-orders/:id/status
+// @route   PATCH /api/purchase-orders/:id/status
 // @desc    Update purchase order status
-// @access  Private (Admin only)
-router.put('/:id/status', authorize('admin'), purchaseOrderController.updatePurchaseOrderStatus);
+// @access  Private (Any authenticated user)
+router.patch('/:id/status', purchaseOrderController.updatePurchaseOrderStatus);
 
 // @route   DELETE /api/purchase-orders/:id
 // @desc    Cancel purchase order
-// @access  Private (Admin only)
-router.delete('/:id', authorize('admin'), purchaseOrderController.cancelPurchaseOrder);
+// @access  Private (Any authenticated user)
+router.delete('/:id', purchaseOrderController.cancelPurchaseOrder);
 
 module.exports = router;

@@ -22,10 +22,19 @@ const getAllSuppliers = async (req, res, next) => {
     const [suppliers, total] = await Promise.all([
       prisma.supplier.findMany({
         where,
-        include: {
-          _count: {
-            select: { products: true }
-          }
+        select: {
+          id: true,
+          name: true,
+          contact: true,
+          company: true,
+          email: true,
+          phone: true,
+          address: true,
+          paymentTerms: true,
+          leadTimeDays: true,
+          isActive: true,
+          createdAt: true,
+          updatedAt: true
         },
         orderBy: { name: 'asc' },
         skip,

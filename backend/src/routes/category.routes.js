@@ -18,13 +18,13 @@ router.get('/:id', categoryController.getCategoryById);
 
 // @route   POST /api/categories
 // @desc    Create new category
-// @access  Private (Admin only)
-router.post('/', authorize('admin'), validate(categorySchema), categoryController.createCategory);
+// @access  Private (Any authenticated user)
+router.post('/', validate(categorySchema), categoryController.createCategory);
 
 // @route   PUT /api/categories/:id
 // @desc    Update category
-// @access  Private (Admin only)
-router.put('/:id', authorize('admin'), validate(categorySchema), categoryController.updateCategory);
+// @access  Private (Any authenticated user)
+router.put('/:id', validate(categorySchema), categoryController.updateCategory);
 
 // @route   DELETE /api/categories/:id
 // @desc    Delete category

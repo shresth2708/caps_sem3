@@ -1,17 +1,22 @@
 import { useState, useEffect } from 'react';
-import { PlusIcon, ArrowUpIcon, ArrowDownIcon, AdjustmentsHorizontalIcon } from '@heroicons/react/24/outline';
+import { PlusIcon, ArrowUpIcon, ArrowDownIcon, AdjustmentsHorizontalIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { toast } from 'react-toastify';
 import transactionService from '../services/transactionService';
 import productService from '../services/productService';
 import SearchInput from '../components/ui/SearchInput';
 import FilterDropdown from '../components/ui/FilterDropdown';
 import Pagination from '../components/ui/Pagination';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
+import { useAuth } from '../context/AuthContext';
 
 const Transactions = () => {
+  const { user } = useAuth();
   const [transactions, setTransactions] = useState([]);
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [showTransactionModal, setShowTransactionModal] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   
   // Filters and pagination
   const [selectedType, setSelectedType] = useState('');
@@ -20,6 +25,16 @@ const Transactions = () => {
   const [endDate, setEndDate] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [pagination, setPagination] = useState(null);
+
+  // Transaction form state
+  const [transactionForm, setTransactionForm] = useState({
+    productId: '',
+    type: '',
+    quantity: '',
+    unitPrice: '',
+    notes: '',
+    referenceNo: ''
+  });
 
   const limit = 20;
 
@@ -99,6 +114,53 @@ const Transactions = () => {
     setCurrentPage(page);
   };
 
+  const resetTransactionForm = () => {
+    setTransactionForm({
+      productId: '',
+      type: '',
+      quantity: '',
+      unitPrice: '',
+      notes: '',
+      referenceNo: ''
+    });
+  };
+
+  const handleTransactionInputChange = (e) => {
+    const { name, value } = e.target;
+    setTransactionForm(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const handleTransactionSubmit = async (e) => {
+    e.preventDefault();
+    if (submitting) return;
+
+    try {
+      setSubmitting(true);
+      
+      const submitData = {
+        ...transactionForm,
+        productId: parseInt(transactionForm.productId),
+        quantity: parseInt(transactionForm.quantity),
+        unitPrice: transactionForm.unitPrice ? parseFloat(transactionForm.unitPrice) : null
+      };
+
+      const response = await transactionService.create(submitData);
+      if (response.success) {
+        toast.success('Transaction recorded successfully!');
+        setShowTransactionModal(false);
+        resetTransactionForm();
+        loadTransactions();
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.error?.message || 'Failed to record transaction');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const getTransactionIcon = (type) => {
     const iconClass = "h-5 w-5";
     switch (type) {
@@ -174,7 +236,10 @@ const Transactions = () => {
       {/* Header */}
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold text-gray-900">Transactions</h1>
-        <button className="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 flex items-center gap-2">
+        <button 
+          onClick={() => setShowTransactionModal(true)}
+          className="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 flex items-center gap-2"
+        >
           <PlusIcon className="h-5 w-5" />
           New Transaction
         </button>
@@ -423,6 +488,178 @@ const Transactions = () => {
           </>
         )}
       </div>
+
+      {/* New Transaction Modal */}
+      {showTransactionModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center p-6 border-b">
+              <h2 className="text-xl font-semibold text-gray-900">
+                New Transaction
+              </h2>
+              <button
+                onClick={() => setShowTransactionModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <XMarkIcon className="h-6 w-6" />
+              </button>
+            </div>
+
+            <form onSubmit={handleTransactionSubmit} className="p-6 space-y-4">
+              {/* Product and Type Selection */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Product *
+                  </label>
+                  <select
+                    name="productId"
+                    value={transactionForm.productId}
+                    onChange={handleTransactionInputChange}
+                    required
+                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                  >
+                    <option value="">Select Product</option>
+                    {products.map(product => (
+                      <option key={product.id} value={product.id}>
+                        {product.name} ({product.sku})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Transaction Type *
+                  </label>
+                  <select
+                    name="type"
+                    value={transactionForm.type}
+                    onChange={handleTransactionInputChange}
+                    required
+                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                  >
+                    <option value="">Select Type</option>
+                    {transactionTypes.map(type => (
+                      <option key={type.value} value={type.value}>
+                        {type.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Quantity and Unit Price */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Quantity *
+                  </label>
+                  <input
+                    type="number"
+                    name="quantity"
+                    value={transactionForm.quantity}
+                    onChange={handleTransactionInputChange}
+                    required
+                    min="1"
+                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                    placeholder="Enter quantity"
+                  />
+                  <div className="mt-1 text-sm text-gray-500">
+                    {transactionForm.type === 'adjustment' 
+                      ? 'Set the final quantity (not the change amount)'
+                      : 'Enter the quantity for this transaction'
+                    }
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Unit Price (optional)
+                  </label>
+                  <input
+                    type="number"
+                    name="unitPrice"
+                    value={transactionForm.unitPrice}
+                    onChange={handleTransactionInputChange}
+                    min="0"
+                    step="0.01"
+                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                    placeholder="0.00"
+                  />
+                  <div className="mt-1 text-sm text-gray-500">
+                    Leave empty to use product's default price
+                  </div>
+                </div>
+              </div>
+
+              {/* Reference Number */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Reference Number
+                </label>
+                <input
+                  type="text"
+                  name="referenceNo"
+                  value={transactionForm.referenceNo}
+                  onChange={handleTransactionInputChange}
+                  className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                  placeholder="Invoice #, PO #, etc."
+                />
+              </div>
+
+              {/* Notes */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Notes
+                </label>
+                <textarea
+                  name="notes"
+                  value={transactionForm.notes}
+                  onChange={handleTransactionInputChange}
+                  rows={3}
+                  className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                  placeholder="Additional notes or reasons for this transaction..."
+                />
+              </div>
+
+              {/* Transaction Type Help */}
+              {transactionForm.type && (
+                <div className="bg-blue-50 p-4 rounded-lg">
+                  <div className="text-sm text-blue-800">
+                    <strong>{transactionTypes.find(t => t.value === transactionForm.type)?.label}:</strong>
+                    <div className="mt-1">
+                      {transactionForm.type === 'stock_in' && 'Increases inventory (e.g., purchases, returns from customers)'}
+                      {transactionForm.type === 'stock_out' && 'Decreases inventory (e.g., sales, transfers)'}
+                      {transactionForm.type === 'adjustment' && 'Sets inventory to exact quantity (e.g., after physical count)'}
+                      {transactionForm.type === 'return' && 'Increases inventory (items returned to supplier)'}
+                      {transactionForm.type === 'damage' && 'Decreases inventory (damaged/expired items)'}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Form Actions */}
+              <div className="flex justify-end gap-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowTransactionModal(false)}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 border border-gray-300 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+                >
+                  {submitting ? 'Recording...' : 'Record Transaction'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

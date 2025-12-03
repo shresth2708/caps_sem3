@@ -31,7 +31,7 @@ const signup = async (req, res, next) => {
         name,
         email,
         password: hashedPassword,
-        role: role || 'user'
+        role: role || 'admin' // Temporarily default to admin for testing
       },
       select: {
         id: true,

@@ -156,8 +156,8 @@ const createTransaction = async (req, res, next) => {
           quantity: type === 'adjustment' ? quantity : Math.abs(quantity),
           beforeQty,
           afterQty,
-          unitPrice: unitPrice || product.unitPrice,
-          totalValue: (unitPrice || product.unitPrice) * Math.abs(quantity),
+          unitPrice: unitPrice || product.price,
+          totalValue: (unitPrice || product.price) * Math.abs(quantity),
           notes,
           referenceNo
         },

@@ -27,22 +27,14 @@ const getAllCategories = async (req, res, next) => {
     const [categories, total] = await Promise.all([
       prisma.category.findMany({
         where,
-        include: {
-          _count: {
-            select: { products: true }
-          },
-          parent: {
-            select: {
-              id: true,
-              name: true
-            }
-          },
-          children: {
-            select: {
-              id: true,
-              name: true
-            }
-          }
+        select: {
+          id: true,
+          name: true,
+          description: true,
+          color: true,
+          parentId: true,
+          createdAt: true,
+          updatedAt: true
         },
         orderBy: { [sortBy]: sortOrder },
         skip,
@@ -83,12 +75,10 @@ const getCategoryById = async (req, res, next) => {
             sku: true,
             name: true,
             quantity: true,
-            unitPrice: true,
+            price: true,
             minStockLevel: true
           }
         },
-        parent: true,
-        children: true,
         _count: {
           select: { products: true }
         }

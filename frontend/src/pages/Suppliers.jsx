@@ -1,15 +1,31 @@
 import { useState, useEffect } from 'react';
-import { PlusIcon, PencilIcon, TrashIcon, PhoneIcon, EnvelopeIcon } from '@heroicons/react/24/outline';
+import { PlusIcon, PencilIcon, TrashIcon, PhoneIcon, EnvelopeIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { BuildingStorefrontIcon } from '@heroicons/react/24/solid';
+import { toast } from 'react-toastify';
 import supplierService from '../services/supplierService';
 import SearchInput from '../components/ui/SearchInput';
 import Pagination from '../components/ui/Pagination';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
+import { useAuth } from '../context/AuthContext';
 
 const Suppliers = () => {
+  const { user } = useAuth();
   const [suppliers, setSuppliers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [showModal, setShowModal] = useState(false);
+  const [editingSupplier, setEditingSupplier] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [formData, setFormData] = useState({
+    name: '',
+    contact: '',
+    company: '',
+    email: '',
+    phone: '',
+    address: '',
+    paymentTerms: '',
+    leadTimeDays: '7'
+  });
   
   // Filters and pagination
   const [searchQuery, setSearchQuery] = useState('');
@@ -58,16 +74,86 @@ const Suppliers = () => {
     setCurrentPage(page);
   };
 
-  const handleDelete = async (supplierId) => {
-    if (!confirm('Are you sure you want to delete this supplier?')) {
+  // Form handlers
+  const resetForm = () => {
+    setFormData({
+      name: '',
+      contact: '',
+      company: '',
+      email: '',
+      phone: '',
+      address: '',
+      paymentTerms: '',
+      leadTimeDays: '7'
+    });
+    setEditingSupplier(null);
+  };
+
+  const openCreateModal = () => {
+    resetForm();
+    setShowModal(true);
+  };
+
+  const openEditModal = (supplier) => {
+    setFormData({
+      name: supplier.name || '',
+      contact: supplier.contact || '',
+      company: supplier.company || '',
+      email: supplier.email || '',
+      phone: supplier.phone || '',
+      address: supplier.address || '',
+      paymentTerms: supplier.paymentTerms || '',
+      leadTimeDays: supplier.leadTimeDays?.toString() || '7'
+    });
+    setEditingSupplier(supplier);
+    setShowModal(true);
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (submitting) return;
+
+    try {
+      setSubmitting(true);
+      
+      const submitData = {
+        ...formData,
+        leadTimeDays: parseInt(formData.leadTimeDays)
+      };
+
+      let response;
+      if (editingSupplier) {
+        response = await supplierService.update(editingSupplier.id, submitData);
+      } else {
+        response = await supplierService.create(submitData);
+      }
+
+      if (response.success) {
+        toast.success(`Supplier ${editingSupplier ? 'updated' : 'created'} successfully!`);
+        setShowModal(false);
+        resetForm();
+        loadSuppliers();
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.error?.message || `Failed to ${editingSupplier ? 'update' : 'create'} supplier`);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleDelete = async (supplierId, supplierName) => {
+    if (!window.confirm(`Are you sure you want to delete "${supplierName}"?`)) {
       return;
     }
 
     try {
-      await supplierService.delete(supplierId);
-      loadSuppliers(); // Reload the list
-    } catch (err) {
-      alert('Failed to delete supplier: ' + err.response?.data?.error?.message || err.message);
+      const response = await supplierService.delete(supplierId);
+      if (response.success) {
+        toast.success('Supplier deleted successfully!');
+        loadSuppliers();
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.error?.message || 'Failed to delete supplier');
     }
   };
 
@@ -114,10 +200,15 @@ const Suppliers = () => {
       {/* Header */}
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold text-gray-900">Suppliers</h1>
-        <button className="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 flex items-center gap-2">
-          <PlusIcon className="h-5 w-5" />
-          Add Supplier
-        </button>
+        {user?.role === 'admin' && (
+          <button 
+            onClick={openCreateModal}
+            className="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 flex items-center gap-2"
+          >
+            <PlusIcon className="h-5 w-5" />
+            Add Supplier
+          </button>
+        )}
       </div>
 
       {/* Search */}
@@ -234,17 +325,24 @@ const Suppliers = () => {
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <div className="flex justify-end gap-2">
-                          <button className="text-indigo-600 hover:text-indigo-900">
-                            <PencilIcon className="h-5 w-5" />
-                          </button>
-                          <button 
-                            onClick={() => handleDelete(supplier.id)}
-                            className="text-red-600 hover:text-red-900"
-                          >
-                            <TrashIcon className="h-5 w-5" />
-                          </button>
-                        </div>
+                        {user?.role === 'admin' && (
+                          <div className="flex justify-end gap-2">
+                            <button 
+                              onClick={() => openEditModal(supplier)}
+                              className="text-indigo-600 hover:text-indigo-900"
+                              title="Edit Supplier"
+                            >
+                              <PencilIcon className="h-5 w-5" />
+                            </button>
+                            <button 
+                              onClick={() => handleDelete(supplier.id, supplier.name)}
+                              className="text-red-600 hover:text-red-900"
+                              title="Delete Supplier"
+                            >
+                              <TrashIcon className="h-5 w-5" />
+                            </button>
+                          </div>
+                        )}
                       </td>
                     </tr>
                   ))}
@@ -264,17 +362,23 @@ const Suppliers = () => {
                           <p className="text-sm text-gray-500">{supplier.company}</p>
                         )}
                       </div>
-                      <div className="flex gap-2">
-                        <button className="text-indigo-600 hover:text-indigo-900">
-                          <PencilIcon className="h-5 w-5" />
-                        </button>
-                        <button 
-                          onClick={() => handleDelete(supplier.id)}
+                      {user?.role === 'admin' && (
+                        <div className="flex gap-2">
+                          <button 
+                            onClick={() => openEditModal(supplier)}
+                            className="text-indigo-600 hover:text-indigo-900"
+                            title="Edit Supplier"
+                          >
+                            <PencilIcon className="h-5 w-5" />
+                          </button>
+                          <button 
+                            onClick={() => handleDelete(supplier.id, supplier.name)}
                           className="text-red-600 hover:text-red-900"
                         >
-                          <TrashIcon className="h-5 w-5" />
-                        </button>
-                      </div>
+                            <TrashIcon className="h-5 w-5" />
+                          </button>
+                        </div>
+                      )}
                     </div>
 
                     <div className="space-y-2">
@@ -331,6 +435,157 @@ const Suppliers = () => {
           </>
         )}
       </div>
+
+      {/* Supplier Form Modal */}
+      {showModal && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-11/12 max-w-2xl shadow-lg rounded-md bg-white">
+            <div className="mt-3">
+              {/* Modal Header */}
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-medium text-gray-900">
+                  {editingSupplier ? 'Edit Supplier' : 'Create New Supplier'}
+                </h3>
+                <button
+                  onClick={() => setShowModal(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <XMarkIcon className="h-6 w-6" />
+                </button>
+              </div>
+
+              {/* Form */}
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Supplier Name */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Supplier Name *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+
+                  {/* Contact */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Contact Person
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.contact}
+                      onChange={(e) => setFormData({ ...formData, contact: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+
+                  {/* Company */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Company
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.company}
+                      onChange={(e) => setFormData({ ...formData, company: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+
+                  {/* Email */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Email
+                    </label>
+                    <input
+                      type="email"
+                      value={formData.email}
+                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+
+                  {/* Phone */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Phone
+                    </label>
+                    <input
+                      type="tel"
+                      value={formData.phone}
+                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+
+                  {/* Lead Time */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Lead Time (Days)
+                    </label>
+                    <input
+                      type="number"
+                      value={formData.leadTimeDays}
+                      onChange={(e) => setFormData({ ...formData, leadTimeDays: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+                </div>
+
+                {/* Address */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Address
+                  </label>
+                  <textarea
+                    rows="3"
+                    value={formData.address}
+                    onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+
+                {/* Payment Terms */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Payment Terms
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.paymentTerms}
+                    onChange={(e) => setFormData({ ...formData, paymentTerms: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    placeholder="e.g., Net 30 days"
+                  />
+                </div>
+
+                {/* Form Actions */}
+                <div className="flex justify-end gap-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => setShowModal(false)}
+                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={submitting}
+                    className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 disabled:opacity-50"
+                  >
+                    {submitting ? 'Saving...' : (editingSupplier ? 'Update Supplier' : 'Create Supplier')}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

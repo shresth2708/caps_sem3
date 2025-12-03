@@ -16,11 +16,21 @@ const userLoginSchema = Joi.object({
 // Product validation schemas
 const productSchema = Joi.object({
   name: Joi.string().min(2).max(200).required(),
-  sku: Joi.string().optional(),
+  sku: Joi.string().optional().allow(''),
   description: Joi.string().max(1000).optional().allow(''),
-  categoryId: Joi.number().integer().positive().optional().allow(null),
-  supplierId: Joi.number().integer().positive().optional().allow(null),
-  unitPrice: Joi.number().positive().required(),
+  category: Joi.string().min(1).max(100).optional().allow(''),
+  categoryId: Joi.alternatives().try(
+    Joi.number().integer().positive(),
+    Joi.string().allow(''),
+    Joi.valid(null)
+  ).optional(),
+  supplierId: Joi.alternatives().try(
+    Joi.number().integer().positive(),
+    Joi.string().allow(''),
+    Joi.valid(null)
+  ).optional(),
+  price: Joi.number().positive().required(),
+  unitPrice: Joi.number().positive().optional().allow(null),
   sellingPrice: Joi.number().positive().optional().allow(null),
   quantity: Joi.number().integer().min(0).required(),
   minStockLevel: Joi.number().integer().min(0).default(10),
@@ -36,6 +46,7 @@ const productSchema = Joi.object({
 // Supplier validation schema
 const supplierSchema = Joi.object({
   name: Joi.string().min(2).max(200).required(),
+  contact: Joi.string().max(200).optional().allow(''),
   company: Joi.string().max(200).optional().allow(''),
   email: Joi.string().email().optional().allow(''),
   phone: Joi.string().max(20).optional().allow(''),
@@ -76,6 +87,7 @@ const purchaseOrderSchema = Joi.object({
 // Validation middleware
 const validate = (schema) => {
   return (req, res, next) => {
+    console.log('Validating request body:', req.body);
     const { error, value } = schema.validate(req.body, {
       abortEarly: false,
       stripUnknown: true
@@ -87,6 +99,7 @@ const validate = (schema) => {
         message: detail.message
       }));
 
+      console.log('Validation error:', error.details);
       return res.status(400).json({
         success: false,
         error: {
@@ -98,6 +111,7 @@ const validate = (schema) => {
     }
 
     req.validatedData = value;
+    console.log('Validation successful:', value);
     next();
   };
 };

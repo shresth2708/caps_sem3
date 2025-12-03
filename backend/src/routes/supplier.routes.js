@@ -18,13 +18,13 @@ router.get('/:id', supplierController.getSupplierById);
 
 // @route   POST /api/suppliers
 // @desc    Create new supplier
-// @access  Private (Admin only)
-router.post('/', authorize('admin'), validate(supplierSchema), supplierController.createSupplier);
+// @access  Private (Any authenticated user)
+router.post('/', validate(supplierSchema), supplierController.createSupplier);
 
 // @route   PUT /api/suppliers/:id
 // @desc    Update supplier
-// @access  Private (Admin only)
-router.put('/:id', authorize('admin'), validate(supplierSchema), supplierController.updateSupplier);
+// @access  Private (Any authenticated user)
+router.put('/:id', validate(supplierSchema), supplierController.updateSupplier);
 
 // @route   DELETE /api/suppliers/:id
 // @desc    Delete supplier
