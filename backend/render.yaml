@@ -1,0 +1,32 @@
+services:
+  - type: web
+    name: inventory-management-backend
+    env: node
+    plan: free
+    buildCommand: |
+      npm install
+      export SKIP_DB_CONNECTION_TEST=true
+      npx prisma generate
+    startCommand: node server.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: SKIP_DB_CONNECTION_TEST
+        value: true
+      - key: DATABASE_URL
+        fromDatabase:
+          name: inventory-db
+          property: connectionString
+      - key: DIRECT_DATABASE_URL
+        fromDatabase:
+          name: inventory-db
+          property: directConnectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRES_IN
+        value: 7d
+
+databases:
+  - name: inventory-db
+    databaseName: inventory_management
+    user: inventory_user
