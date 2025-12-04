@@ -20,6 +20,7 @@ DATABASE_URL=postgresql://neondb_owner:npg_Z7FaqpYe3jyB@ep-muddy-bread-a1hth9x9-
 DIRECT_DATABASE_URL=postgresql://neondb_owner:npg_Z7FaqpYe3jyB@ep-muddy-bread-a1hth9x9.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require
 JWT_SECRET=inventory_mgmt_neon_production_jwt_secret_2024_secure_random_key_stockpilot_app
 JWT_EXPIRES_IN=7d
+FRONTEND_URL=https://caps-sem3.vercel.app
 ```
 
 ## Key Changes Made:

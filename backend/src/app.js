@@ -13,6 +13,7 @@ app.use(cors({
     'http://localhost:5173',
     'http://localhost:5174',
     'http://localhost:5175',
+    'https://caps-sem3.vercel.app',
     process.env.FRONTEND_URL
   ].filter(Boolean),
   credentials: true
