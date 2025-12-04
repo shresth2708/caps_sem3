@@ -9,34 +9,52 @@ const Pagination = ({
   totalItems,
   itemType = 'items' 
 }) => {
+  console.log('Pagination render:', { currentPage, totalPages, showingFrom, showingTo, totalItems });
   // Generate page numbers to show
   const getVisiblePages = () => {
-    const delta = 2; // Number of pages to show on each side of current page
-    const range = [];
-    const rangeWithDots = [];
-    let l;
-
-    for (let i = Math.max(2, currentPage - delta);
-         i <= Math.min(totalPages - 1, currentPage + delta);
-         i++) {
-      range.push(i);
+    // For small number of pages, show all
+    if (totalPages <= 7) {
+      const pages = [];
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i);
+      }
+      return pages;
     }
 
-    if (currentPage - delta > 2) {
-      rangeWithDots.push(1, '...');
-    } else {
-      rangeWithDots.push(1);
+    // For larger number of pages, use ellipsis
+    const pages = [];
+    const delta = 1;
+
+    // Always show first page
+    pages.push(1);
+
+    // Calculate start and end of middle range
+    let rangeStart = Math.max(2, currentPage - delta);
+    let rangeEnd = Math.min(totalPages - 1, currentPage + delta);
+
+    // Add ellipsis before range if there's a gap
+    if (rangeStart > 2) {
+      pages.push('...');
     }
 
-    rangeWithDots.push(...range);
-
-    if (currentPage + delta < totalPages - 1) {
-      rangeWithDots.push('...', totalPages);
-    } else {
-      rangeWithDots.push(totalPages);
+    // Add middle range
+    for (let i = rangeStart; i <= rangeEnd; i++) {
+      if (i !== 1 && i !== totalPages) {
+        pages.push(i);
+      }
     }
 
-    return rangeWithDots;
+    // Add ellipsis after range if there's a gap
+    if (rangeEnd < totalPages - 1) {
+      pages.push('...');
+    }
+
+    // Always show last page (unless it's the first page)
+    if (totalPages > 1) {
+      pages.push(totalPages);
+    }
+
+    return pages;
   };
 
   const visiblePages = totalPages > 1 ? getVisiblePages() : [];
@@ -102,7 +120,10 @@ const Pagination = ({
               return (
                 <button
                   key={page}
-                  onClick={() => onPageChange(page)}
+                  onClick={() => {
+                    console.log('Page button clicked:', page, 'current:', currentPage);
+                    onPageChange(page);
+                  }}
                   className={`relative inline-flex items-center px-4 py-2 text-sm font-semibold ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 ${
                     page === currentPage
                       ? 'bg-indigo-600 text-white focus:bg-indigo-500'

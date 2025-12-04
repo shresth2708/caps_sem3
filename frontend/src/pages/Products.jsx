@@ -137,6 +137,7 @@ const Products = () => {
   };
 
   const handlePageChange = (page) => {
+    console.log('Products handlePageChange called with:', page, 'current page:', currentPage);
     setCurrentPage(page);
   };
 

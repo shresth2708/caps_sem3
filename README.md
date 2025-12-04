@@ -7,6 +7,11 @@
 ![Node.js](https://img.shields.io/badge/Node.js-16+-green)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-13+-blue)
 
+## 🌐 **Live Demo**
+
+- **Frontend**: [https://caps-sem3.vercel.app/](https://caps-sem3.vercel.app/)
+- **Backend API**: [https://caps-sem3.onrender.com](https://caps-sem3.onrender.com)
+
 ---
 
 # 1. **Overview**

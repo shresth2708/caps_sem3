@@ -2,6 +2,10 @@
 
 Backend REST API for StockPilot - Intelligent Inventory Management System
 
+## 🌐 **Live API**
+
+**Production URL**: [https://caps-sem3.onrender.com](https://caps-sem3.onrender.com)
+
 ## 🚀 Technology Stack
 
 - **Runtime**: Node.js
@@ -80,8 +84,15 @@ Server will start on `http://localhost:5000`
 ## 📡 API Endpoints
 
 ### Base URL
+
+**Development:**
 ```
 http://localhost:5000/api
+```
+
+**Production:**
+```
+https://caps-sem3.onrender.com/api
 ```
 
 ### 🔐 Authentication

@@ -2,6 +2,10 @@
 
 React-based frontend for StockPilot Inventory Management System
 
+## 🌐 **Live Application**
+
+**Production URL**: [https://caps-sem3.vercel.app/](https://caps-sem3.vercel.app/)
+
 ## 🚀 Technology Stack
 
 - **Framework**: React 18
@@ -40,10 +44,18 @@ cp .env.example .env
 
 Update the variables:
 
+**Development:**
 ```env
 VITE_API_URL=http://localhost:5000/api
 VITE_APP_NAME=StockPilot
 VITE_ENV=development
+```
+
+**Production:**
+```env
+VITE_API_URL=https://caps-sem3.onrender.com/api
+VITE_APP_NAME=StockPilot
+VITE_ENV=production
 ```
 
 ### 3. Start Development Server
