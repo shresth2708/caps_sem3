@@ -25,4 +25,9 @@ router.put('/read-all', notificationController.markAllAsRead);
 // @access  Private
 router.delete('/:id', notificationController.deleteNotification);
 
+// @route   POST /api/notifications/generate-samples
+// @desc    Generate sample notifications (for testing)
+// @access  Private (Development only)
+router.post('/generate-samples', notificationController.generateSamples);
+
 module.exports = router;

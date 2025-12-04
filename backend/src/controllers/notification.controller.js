@@ -1,4 +1,5 @@
 const prisma = require('../config/database');
+const { generateSampleNotifications } = require('../utils/notificationHelper');
 
 // @desc    Get user notifications
 const getUserNotifications = async (req, res, next) => {
@@ -177,9 +178,35 @@ const deleteNotification = async (req, res, next) => {
   }
 };
 
+// @desc    Generate sample notifications (for testing)
+const generateSamples = async (req, res, next) => {
+  try {
+    if (process.env.NODE_ENV === 'production') {
+      return res.status(403).json({
+        success: false,
+        error: {
+          code: 'FORBIDDEN',
+          message: 'Sample generation not available in production'
+        }
+      });
+    }
+
+    const notifications = await generateSampleNotifications(req.user.id);
+    
+    res.json({
+      success: true,
+      message: `Generated ${notifications.length} sample notifications`,
+      data: { notifications }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getUserNotifications,
   markAsRead,
   markAllAsRead,
-  deleteNotification
+  deleteNotification,
+  generateSamples
 };
