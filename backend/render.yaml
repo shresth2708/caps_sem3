@@ -6,8 +6,10 @@ services:
     buildCommand: |
       npm install
       export SKIP_DB_CONNECTION_TEST=true
-      npx prisma generate
-    startCommand: node server.js
+      npm run build
+    startCommand: |
+      npm run postdeploy || echo "Migration failed, continuing with app startup"
+      node server.js
     envVars:
       - key: NODE_ENV
         value: production
